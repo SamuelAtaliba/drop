@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Drop Shipping</title>
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        body {
+            background-color: #f5f5f5;
+            color: #333;
+        }
+        .container {
+            margin-top: 50px;
+        }
+        .btn-primary, .btn-success, .btn-warning {
+            background-color: #007bff;
+            border-color: #007bff;
+            transition: background-color 0.3s, border-color 0.3s;
+        }
+        .btn-primary:hover, .btn-success:hover, .btn-warning:hover {
+            background-color: #0056b3;
+            border-color: #0056b3;
+        }
+        .hidden {
+            display: none;
+        }
+        .form-section {
+            transition: opacity 0.5s;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="text-center">Drop</h1>
+        <div id="productPage" class="form-section">
+            <form id="productForm">
+                <div class="form-group">
+                    <label for="productName">Nome do Produto</label>
+                    <input type="text" class="form-control" id="productName" required>
+                </div>
+                <div class="form-group">
+                    <label for="productPrice">Preço de Compra</label>
+                    <input type="number" class="form-control" id="productPrice" required>
+                </div>
+                <div class="form-group">
+                    <label for="productSalePrice">Preço de Venda</label>
+                    <input type="number" class="form-control" id="productSalePrice" required>
+                </div>
+                <div class="form-group">
+                    <label for="productLink">Link</label>
+                    <input type="url" class="form-control" id="productLink" required>
+                </div>
+                <button type="submit" class="btn btn-primary">Adicionar Item</button>
+            </form>
+            <button id="toParticipants" class="btn btn-success mt-4">Avançar</button>
+        </div>
+        
+        <div id="participantPage" class="form-section hidden">
+            <form id="participantForm">
+                <div class="form-group">
+                    <label for="participantName">Nome</label>
+                    <input type="text" class="form-control" id="participantName" required>
+                </div>
+                <div class="form-group">
+                    <label for="participantPixKey">Chave Pix</label>
+                    <input type="text" class="form-control" id="participantPixKey" required>
+                </div>
+                <div class="form-group">
+                    <label for="participantInvestment">Investimento</label>
+                    <input type="number" class="form-control" id="participantInvestment" required>
+                </div>
+                <button type="submit" class="btn btn-primary">Adicionar Participante</button>
+            </form>
+            <button id="toProduct" class="btn btn-warning mt-4">Voltar</button>
+            <button id="toReport" class="btn btn-success mt-4">Avançar</button>
+            <div id="participantsList" class="mt-4"></div>
+        </div>
+        
+        <div id="reportPage" class="form-section hidden">
+            <button id="toParticipantsFromReport" class="btn btn-warning mt-4">Voltar</button>
+            <button id="generateReportBtn" class="btn btn-success mt-4">Gerar Relatório</button>
+            <div id="reportContent" class="mt-4"></div>
+        </div>
+    </div>
+    <script>
+        // Função para limpar campos de entrada
+        function clearInputs(form) {
+            form.querySelectorAll('input').forEach(input => input.value = '');
+        }
+
+        // Função para renderizar a lista de participantes
+        function renderParticipants() {
+            const participants = JSON.parse(localStorage.getItem('participants') || '[]');
+            const participantsList = document.getElementById('participantsList');
+            participantsList.innerHTML = '<h3>Participantes</h3>';
+            participants.forEach(participant => {
+                participantsList.innerHTML += `
+                    <p>Nome: ${participant.name}</p>
+                    <p>Chave Pix: ${participant.pixKey}</p>
+                    <p>Investimento: R$${participant.investment}</p>
+                    <hr>
+                `;
+            });
+        }
+
+        // Função para transitar entre seções
+        function showSection(hide, show) {
+            document.getElementById(hide).classList.add('hidden');
+            document.getElementById(show).classList.remove('hidden');
+        }
+
+        document.getElementById('productForm').addEventListener('submit', (event) => {
+            event.preventDefault();
+            const product = {
+                name: document.getElementById('productName').value,
+                price: document.getElementById('productPrice').value,
+                salePrice: document.getElementById('productSalePrice').value,
+                link: document.getElementById('productLink').value
+            };
+            localStorage.setItem('product', JSON.stringify(product));
+            alert('Produto adicionado');
+            clearInputs(event.target);
+        });
+
+        document.getElementById('participantForm').addEventListener('submit', (event) => {
+            event.preventDefault();
+            const participants = JSON.parse(localStorage.getItem('participants') || '[]');
+            const participant = {
+                name: document.getElementById('participantName').value,
+                pixKey: document.getElementById('participantPixKey').value,
+                investment: document.getElementById('participantInvestment').value
+            };
+            participants.push(participant);
+            localStorage.setItem('participants', JSON.stringify(participants));
+            alert('Participante adicionado');
+            clearInputs(event.target);
+            renderParticipants();
+        });
+
+        document.getElementById('toParticipants').addEventListener('click', () => {
+            showSection('productPage', 'participantPage');
+            renderParticipants();
+        });
+
+        document.getElementById('toProduct').addEventListener('click', () => {
+            showSection('participantPage', 'productPage');
+        });
+
+        document.getElementById('toReport').addEventListener('click', () => {
+            const participants = JSON.parse(localStorage.getItem('participants') || '[]');
+            const product = JSON.parse(localStorage.getItem('product'));
+
+            const totalInvestment = participants.reduce((sum, participant) => sum + parseFloat(participant.investment), 0);
+            if (totalInvestment < parseFloat(product.price)) {
+                alert('Investimento total insuficiente para cobrir o preço do produto.');
+                return;
+            }
+
+            showSection('participantPage', 'reportPage');
+        });
+
+        document.getElementById('toParticipantsFromReport').addEventListener('click', () => {
+            showSection('reportPage', 'participantPage');
+        });
+
+        document.getElementById('generateReportBtn').addEventListener('click', () => {
+            const product = JSON.parse(localStorage.getItem('product'));
+            const participants = JSON.parse(localStorage.getItem('participants'));
+
+            const totalInvestment = participants.reduce((sum, participant) => sum + parseFloat(participant.investment), 0);
+            const totalProfit = parseFloat(product.salePrice) - parseFloat(product.price);
+
+            const reportContent = document.getElementById('reportContent');
+            reportContent.innerHTML = `
+                <h3>Produto</h3>
+                <p>Nome: ${product.name}</p>
+                <p>Preço de Compra: R$${product.price}</p>
+                <p>Preço de Venda: R$${product.salePrice}</p>
+                <p>Link: <a href="${product.link}" target="_blank">${product.link}</a></p>
+                <h3>Participantes</h3>
+            `;
+
+            participants.forEach(participant => {
+                const returnAmount = parseFloat(participant.investment) + (parseFloat(participant.investment) / totalInvestment) * totalProfit;
+                reportContent.innerHTML += `
+                    <p>Nome: ${participant.name}</p>
+                    <p>Chave Pix: ${participant.pixKey}</p>
+                    <p>Investimento: R$${participant.investment}</p>
+                    <p>Retorno: R$${returnAmount.toFixed(2)}</p>
+                    <hr>
+                `;
+            });
+
+            // Geração do PDF
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            doc.text('Relatório geral', 10, 10);
+
+            doc.text(`Produto: ${product.name}`, 10, 20);
+            doc.text(`Preço de Compra: R$${product.price}`, 10, 30);
+            doc.text(`Preço de Venda: R$${product.salePrice}`, 10, 40);
+            doc.text(`Link: ${product.link}`, 10, 50);
+
+            let yPosition = 60;
+            participants.forEach(participant => {
+                const returnAmount = parseFloat(participant.investment) + (parseFloat(participant.investment) / totalInvestment) * totalProfit;
+                doc.text(`Nome: ${participant.name}`, 10, yPosition);
+                doc.text(`Chave Pix: ${participant.pixKey}`, 10, yPosition + 10);
+                doc.text(`Investimento: R$${participant.investment}`, 10, yPosition + 20);
+                doc.text(`Retorno: R$${returnAmount.toFixed(2)}`, 10, yPosition + 30);
+                yPosition += 40;
+            });
+
+            doc.save('relatório.pdf');
+        });
+    </script>
+</body>
+</html>
